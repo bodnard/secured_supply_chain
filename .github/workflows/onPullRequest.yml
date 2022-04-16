@@ -6,8 +6,39 @@ on:
 
 jobs:
 
+  GPG_signature_check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Head of branch to be merged
+        # https://github.com/actions/checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # to have origin path on the working tree
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Get Publick keys
+        run: |
+          echo "### Signatures to validate with"
+          curl -L https://github.com/bodnard.gpg -o key.gpg
+          gpg --import key.gpg
+
+
+      - name: Get Commits to validate
+        # all the commits from origin/main to HEAD
+        run: |
+          echo "### Commits from HEAD till ORIGIN"
+          git log origin/main..HEAD --pretty=format:"%H"
+
+      - name: Validate comits
+        #  if any commit is not verified pipeline will fail
+        run: |
+          echo "### Verifyed commits"
+          git verify-commit $(git log origin/main..HEAD --pretty=format:"%H") --verbose
+
+
   build:
     runs-on: ubuntu-latest
+    needs: [ GPG_signature_check ]
     steps:
       - name: Checkout detached HEAD
         uses: actions/checkout@v2
